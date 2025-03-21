@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const bcrypt = require('bcrypt');
 const dotenv = require("dotenv");
 const connectDB = require("./database/db"); // MongoDB Connection
 const User = require("./models/User"); // User Model
@@ -13,7 +14,21 @@ app.use(cors({ origin: "*", credentials: true }));
 connectDB();
 
 // Middleware
-app.use(cors());
+// 🔥 Enable CORS
+app.use(cors({
+  origin: "*", // Change to "http://localhost:5173" if needed
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type"],
+  credentials: true
+}));
+
+// Debugging CORS
+app.use((req, res, next) => {
+  console.log(`🔵 Received request: ${req.method} ${req.url}`);
+  res.header("Access-Control-Allow-Origin", "*");
+  next();
+});
+
 app.use(express.json());
 
 // Routes
@@ -23,13 +38,18 @@ const projectRoutes = require("./routes/projectroutes"); // Project routes
 const taskRoutes = require("./routes/taskRoutes"); // Task routes
 
 app.use("/api/auth", authRoutes);
-app.use("/api", dataRoutes);
+app.use("/api/data", dataRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/tasks", taskRoutes);
 
 // Test Route
 app.get("/", (req, res) => {
   res.send("API is running...");
+});
+
+
+app.get("/home", (req, res) => {
+  res.json({ message: "Hello from backend!" });
 });
 
 // ✅ USER CRUD Operations
@@ -81,6 +101,38 @@ app.delete("/users/:id", async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+
+app.post('/api/projects', async (req, res) => {
+  try {
+      const { name, description, startDate, endDate, status } = req.body;
+      const newProject = new Project({ name, description, startDate, endDate, status });
+      await newProject.save();
+      res.status(201).json(newProject);
+  } catch (error) {
+      res.status(500).json({ error: error.message });
+  }
+});
+
+app.post("/api/login", async (req, res) => {
+  console.log("Received Login Request:", req.body);
+  
+  const { email, password } = req.body;
+  const user = await User.findOne({ email });
+
+  if (!user) {
+      return res.status(401).json({ error: "User not found" });
+  }
+
+  const isPasswordValid = await bcrypt.compare(password, user.password);
+  
+  if (!isPasswordValid) {
+      return res.status(401).json({ error: "Invalid password" });
+  }
+
+  res.json({ success: true, message: "Login successful" });
+});
+
 
 // Start Server
 app.listen(PORT, () => {

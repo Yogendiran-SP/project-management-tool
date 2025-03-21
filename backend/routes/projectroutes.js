@@ -6,7 +6,11 @@ const router = express.Router();
 // ✅ Create a new project
 router.post("/", async (req, res) => {
   try {
-    const newProject = new Project(req.body);
+    const { name, status } = req.body;
+    const newProject = new Project({
+      name: name || "Untitled Project",
+      status: status || "Pending",
+    });
     await newProject.save();
     res.status(201).json({ message: "Project created", project: newProject });
   } catch (error) {
@@ -14,11 +18,17 @@ router.post("/", async (req, res) => {
   }
 });
 
-// ✅ Get all projects
+// ✅ Get all projects (Ensure `name` & `status` are sent)
 router.get("/", async (req, res) => {
   try {
     const projects = await Project.find();
-    res.json(projects);
+    res.json(
+      projects.map((p) => ({
+        id: p._id,
+        name: p.name || "Unnamed Project",
+        status: p.status || "Pending",
+      }))
+    );
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -29,7 +39,11 @@ router.get("/:id", async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
     if (!project) return res.status(404).json({ message: "Project not found" });
-    res.json(project);
+    res.json({
+      id: project._id,
+      name: project.name || "Unnamed Project",
+      status: project.status || "Pending",
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -38,7 +52,12 @@ router.get("/:id", async (req, res) => {
 // ✅ Update a project by ID
 router.put("/:id", async (req, res) => {
   try {
-    const updatedProject = await Project.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const { name, status } = req.body;
+    const updatedProject = await Project.findByIdAndUpdate(
+      req.params.id,
+      { name, status },
+      { new: true }
+    );
     if (!updatedProject) return res.status(404).json({ message: "Project not found" });
     res.json({ message: "Project updated", project: updatedProject });
   } catch (error) {

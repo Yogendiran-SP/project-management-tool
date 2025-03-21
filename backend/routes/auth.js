@@ -15,12 +15,16 @@ router.post(
     check("password", "Password must be 6 or more characters").isLength({ min: 6 }),
   ],
   async (req, res) => {
+    console.log("🟡 Received /register request:", req.body); // Log incoming request
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log("🔴 Validation Errors:", errors.array()); // Log validation errors
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { name, email, password } = req.body;
+    console.log("🟢 Processed Data:", { name, email });
 
     try {
       let user = await User.findOne({ email });
@@ -30,25 +34,20 @@ router.post(
 
       user = new User({ name, email, password });
 
+      console.log("🟢 User to be saved:", user); // <-- ADD THIS LINE HERE
+
       // Hash the password
       const salt = await bcrypt.genSalt(10);
       user.password = await bcrypt.hash(password, salt);
 
       await user.save();
-
-      console.log("✅ User registered:", user); // Log the user object
-
-      // Check if JWT_SECRET is set
-      if (!process.env.JWT_SECRET) {
-        console.error("❌ ERROR: JWT_SECRET is not defined in .env file!");
-        return res.status(500).json({ msg: "Server configuration error" });
-      }
+      console.log("✅ User successfully registered:", user); // Log after saving
 
       // Generate JWT
       const payload = { user: { id: user.id } };
       jwt.sign(
         payload,
-        process.env.JWT_SECRET, // Store this in .env
+        process.env.JWT_SECRET,
         { expiresIn: "1h" },
         (err, token) => {
           if (err) throw err;
